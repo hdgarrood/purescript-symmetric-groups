@@ -61,7 +61,10 @@ newtype Sym = Sym (Array Int)
 -- Drop a superfluous tail in a bijection, if any. The given array must not
 -- have any repeated elements.
 reduce :: Array Int -> Array Int
-reduce xs = Array.take (n - tailLength) xs
+reduce xs =
+  if tailLength == 0
+    then xs
+    else Array.take (n - tailLength) xs
   where
   n = Array.length xs
   tailLength = go 0 n
