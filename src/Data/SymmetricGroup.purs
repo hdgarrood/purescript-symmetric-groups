@@ -2,6 +2,7 @@ module Data.SymmetricGroup
   ( Sym
   , symmetric
   , alternating
+  , identitySym
   , asCycles
   , setSize
   , unSym
@@ -30,6 +31,9 @@ newtype Sym = Sym (List Int)
 -- Invariant: the array should contain each int from 1 to n exactly once for
 -- some n.
 
+derive newtype instance eqSym :: Eq Sym
+derive newtype instance ordSym :: Ord Sym
+
 instance showSym :: Show Sym where
   show s =
     let cs = asCycles s
@@ -45,7 +49,7 @@ instance semigroupSym :: Semigroup Sym where
   append = composeSym
 
 instance monoidSym :: Monoid Sym where
-  mempty = Sym (1 : Nil)
+  mempty = identitySym 1
 
 newtype Set a = Set (Map a Unit)
 
@@ -92,6 +96,9 @@ asFunction (Sym xs) i = fromMaybe i (List.index xs (i - 1))
 -- | The number of elements in the underlying set of a bijection.
 setSize :: Sym -> Int
 setSize (Sym xs) = List.length xs
+
+identitySym :: Int -> Sym
+identitySym n = Sym (List.range 1 n)
 
 unSym :: Sym -> List Int
 unSym (Sym xs) = xs
