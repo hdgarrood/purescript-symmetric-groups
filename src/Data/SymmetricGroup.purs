@@ -4,6 +4,10 @@ module Data.SymmetricGroup where
 --  , alternating
 --  , permutations
 --  , asCycles
+--  , asFunction
+--  , fromCycle
+--  , fromCycles
+--  , cycleOf
 --  , minN
 --  , unSym
 --  , inversions
@@ -27,9 +31,9 @@ import Data.List (List(..), (:))
 import Data.List as List
 
 -- | The type `Sym` represents the group of bijections f on the set of natural
--- | numbers, for which there exists some natural N such that for all n >= N,
--- | n is a fixed point of f; that is, f m /= m only for finitely many naturals
--- | m. The group operation is composition, and the identity element is the
+-- | numbers, which fix all but finitely many points. Equivalently, there
+-- | exists some natural N such that for all n >= N, n is a fixed point of f.
+-- | The group operation is composition, and the identity element is the
 -- | identity function.
 -- |
 -- | This slightly strange representation allows us to easily consider, eg, S_5
