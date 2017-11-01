@@ -191,7 +191,7 @@ invertSym :: Sym -> Sym
 invertSym =
   -- no need to reduce here since minN is unchanged
   Sym
-  <<< map snd
+  <<< map ((_ + 1) <<< snd)
   <<< Array.sort
   <<< Array.mapWithIndex (flip Tuple)
   <<< unSym
