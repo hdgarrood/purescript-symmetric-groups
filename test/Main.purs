@@ -5,34 +5,41 @@ import Data.SymmetricGroup
 
 import Data.Monoid (mempty)
 import Data.Group (ginverse)
-import Data.Foldable (for_)
+import Data.Foldable (for_, product)
 import Data.Array as Array
 import Test.Assert (assert)
 import Control.Monad.Eff.Console (log)
 
+fact n = product (Array.range 1 n)
+
 main = do
+  for_ (Array.range 2 6) \n -> do
+     log $ "testing `symmetric` and `alternating` (n=" <> show n <> ")"
+     let sn = symmetric n
+         an = alternating n
+
+     assert (Array.nub sn == sn)
+     assert (Array.length sn == fact n)
+     assert (Array.length an == fact n / 2)
+
   let s4 = symmetric 4
-  let a4 = alternating 4
+  let s5 = symmetric 5
 
-  log "nub s4 == s4"
-  assert (Array.nub s4 == s4)
-
-  log "length s4 == 24"
-  assert (Array.length s4 == 24)
-
-  log "associativity holds in s4"
+  log "associativity"
   for_ s4 \a ->
     for_ s4 \b ->
       for_ s4 \c ->
         assert ((a <> b) <> c == a <> (b <> c))
 
-  log "identity in s4"
-  for_ s4 \a -> do
+  log "identity"
+  for_ s5 \a -> do
     assert (a <> mempty == a)
     assert (mempty <> a == a)
 
-  log "length a4 == 12"
-  assert (Array.length a4 == 12)
+  log "inverses"
+  for_ s5 \a -> do
+    assert (a <> ginverse a == mempty)
+    assert (ginverse a <> a == mempty)
 
   log "sgn homomorphism"
   for_ s4 \a ->
@@ -40,10 +47,5 @@ main = do
       assert (sgn a * sgn b == sgn (a <> b))
 
   log "fromCycles <<< asCycles = id"
-  for_ s4 \s ->
+  for_ s5 \s ->
     assert (fromCycles (asCycles s) == s)
-
-  -- log "inverses in s4"
-  -- for_ s4 \a -> do
-  --   assert (ginverse a <> a == mempty)
-  --   assert (a <> ginverse a == mempty)
