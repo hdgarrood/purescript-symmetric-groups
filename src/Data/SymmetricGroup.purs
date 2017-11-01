@@ -19,7 +19,7 @@ import Data.Maybe
 import Data.Tuple
 import Data.Int as Int
 import Data.String as String
-import Data.Foldable (foldl, foldMap)
+import Data.Foldable (foldl, foldMap, maximum)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Array as Array
@@ -129,6 +129,32 @@ cycleOf s init =
 
 asFunction :: Sym -> Int -> Int
 asFunction (Sym xs) i = fromMaybe i (Array.index xs (i - 1))
+
+fromCycles :: List (List Int) -> Sym
+fromCycles = foldMap fromCycle
+
+-- | Generate a permutation given a single cycle. If the given list includes
+-- | nonpositive elements they will be ignored.
+fromCycle :: List Int -> Sym
+fromCycle is =
+  let js = List.filter (_ > 0) is
+      n = fromMaybe 1 (maximum js)
+      orig = Array.range 1 n
+      graph = cycleGraph js
+   in Sym $ reduce $
+        foldl (flip (\(Tuple ix m) ->
+                        fromMaybe [] <<< Array.updateAt (ix - 1) m))
+              orig
+              graph
+
+-- | Generate the graph of a cycle (omitting fixed points).
+cycleGraph :: List Int -> List (Tuple Int Int)
+cycleGraph Nil          = Nil
+cycleGraph (_:Nil)      = Nil
+cycleGraph (i1:i2:tail) = List.reverse $ go (pure (Tuple i1 i2)) i2 tail
+  where
+  go acc im Nil        = Tuple im i1 : acc
+  go acc im (im1:rest) = go (Tuple im im1 : acc) im1 rest
 
 -- | The minimum natural number N for which the given bijection fixes all n >=
 -- | N.
