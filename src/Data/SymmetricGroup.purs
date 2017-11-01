@@ -8,6 +8,7 @@ module Data.SymmetricGroup
   , unSym
   , inversions
   , sgn
+  , order
   ) where
 
 import Prelude
@@ -125,6 +126,11 @@ composeSym s1 s2 =
   let n = max (setSize s1) (setSize s2)
       f = asFunction s1 <<< asFunction s2
    in Sym (map (f $ _) (List.range 1 n))
+
+-- | The order of a permutation; the smallest positive integer n such that s^n
+-- | is the identity.
+order :: Sym -> Int
+order s = foldl lcm 1 (map List.length (asCycles s))
 
 -- | The inversions of a permutation, i.e. pairs of points x, y such that x <
 -- | y and s x > s y.
