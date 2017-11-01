@@ -1,19 +1,20 @@
-module Data.SymmetricGroup
-  ( Sym
-  , symmetric
-  , alternating
-  , identitySym
-  , asCycles
-  , setSize
-  , unSym
-  , inversions
-  , sgn
-  , order
-  ) where
+module Data.SymmetricGroup where
+--  ( Sym
+--  , symmetric
+--  , alternating
+--  , permutations
+--  , asCycles
+--  , minN
+--  , unSym
+--  , inversions
+--  , sgn
+--  , order
+--  ) where
 
 import Prelude
 import Control.MonadPlus (guard)
 import Data.Monoid (class Monoid, mempty)
+import Data.Group (class Group)
 import Data.Maybe
 import Data.Tuple
 import Data.Int as Int
@@ -21,16 +22,48 @@ import Data.String as String
 import Data.Foldable (foldl, foldMap)
 import Data.Map (Map)
 import Data.Map as Map
+import Data.Array as Array
 import Data.List (List(..), (:))
 import Data.List as List
-import Data.Typelevel.Num ()
-import Partial.Unsafe (unsafePartial)
 
--- | The type `Sym` represents the symmetric group on some set {1,2,...n}; a
--- | value of this type represents a bijection on this set.
-newtype Sym = Sym (List Int)
--- Invariant: the array should contain each int from 1 to n exactly once for
--- some n.
+-- | The type `Sym` represents the group of bijections f on the set of natural
+-- | numbers, for which there exists some natural N such that for all n >= N,
+-- | n is a fixed point of f; that is, f m /= m only for finitely many naturals
+-- | m. The group operation is composition, and the identity element is the
+-- | identity function.
+-- |
+-- | This slightly strange representation allows us to easily consider, eg, S_5
+-- | as a group in its own right (by identifying it with the subgroup of
+-- | bijections which fix all n >= 6), or as a subgroup of S_6, or of S_7, and
+-- | so on.
+-- |
+-- | In particular, every finite symmetric group S_n can be identified with a
+-- | subgroup of the `Sym` group in the above way.
+newtype Sym = Sym (Array Int)
+
+-- A value of type `Sym` is represented by an array of integers such that the
+-- bijection can be converted to a standard PureScript function as follows:
+--
+--   asFunction (Sym xs) i = fromMaybe i (Array.index xs (i - 1))
+--
+-- The array should therefore contain each integer from 1 to n exactly once for
+-- some n; if any integer appeared twice then the function would not be
+-- injective. The array should also be the shortest array representing that
+-- bijection. For example, the arrays [2,1,3] and [2,1] represent the same
+-- bijection: the one which swaps 1 and 2 and fixes everything else. Therefore
+-- the latter representation is the only valid representation of this
+-- bijection.
+
+-- Drop a superfluous tail in a bijection, if any. The given array must not
+-- have any repeated elements.
+reduce :: Array Int -> Array Int
+reduce xs = Array.take (n - tailLength) xs
+  where
+  n = Array.length xs
+  tailLength = go 0 n
+  go count m = if Array.index xs (m - 1) == Just m
+                 then go (count + 1) (m - 1)
+                 else count
 
 derive newtype instance eqSym :: Eq Sym
 derive newtype instance ordSym :: Ord Sym
@@ -43,14 +76,17 @@ instance showSym :: Show Sym where
           String.joinWith " " (map show (List.toUnfoldable c)) <>
           ")"
      in if List.null cs
-          then "ι"
+          then "e"
           else foldMap showCycle cs
 
 instance semigroupSym :: Semigroup Sym where
   append = composeSym
 
 instance monoidSym :: Monoid Sym where
-  mempty = identitySym 1
+  mempty = Sym []
+
+instance groupSym :: Group Sym where
+  ginverse = invertSym
 
 newtype Set a = Set (Map a Unit)
 
@@ -67,18 +103,18 @@ delete k (Set m) = Set (Map.delete k m)
 asCycles :: Sym -> List (List Int)
 asCycles s = List.sort (go Nil (oneUpTo n))
   where
-  n = setSize s
+  n = minN s
   go cycles points =
     case popMin points of
       Nothing ->
         cycles
       Just (Tuple i points') ->
-        let c = unsafePartial (cycleOf s i)
+        let c = cycleOf s i
             cycles' = if List.null c then cycles else c : cycles
-         in go cycles' (foldl (flip delete) points' c)
+         in go cycles' (foldl (flip delete) points' (i : c))
 
 -- Compute the cycle containing a given point.
-cycleOf :: Partial => Sym -> Int -> List Int
+cycleOf :: Sym -> Int -> List Int
 cycleOf s init =
   if f init == init
     then Nil
@@ -92,57 +128,64 @@ cycleOf s init =
           else go (fi : cyc) fi
 
 asFunction :: Sym -> Int -> Int
-asFunction (Sym xs) i = fromMaybe i (List.index xs (i - 1))
+asFunction (Sym xs) i = fromMaybe i (Array.index xs (i - 1))
 
--- | The number of elements in the underlying set of a bijection.
-setSize :: Sym -> Int
-setSize (Sym xs) = List.length xs
+-- | The minimum natural number N for which the given bijection fixes all n >=
+-- | N.
+minN :: Sym -> Int
+minN (Sym xs) = max 1 (Array.length xs)
 
-identitySym :: Int -> Sym
-identitySym n = Sym (List.range 1 n)
-
-unSym :: Sym -> List Int
+unSym :: Sym -> Array Int
 unSym (Sym xs) = xs
 
+-- | Returns all permutations of the array with elements from 1 up to n.
+permutations :: Int -> Array (Array Int)
+permutations n | n <= 0 = []
+permutations 1 = [[1]]
+permutations n = do
+  p <- permutations (n - 1)
+  i <- Array.range 0 (n - 1)
+  maybe [] pure (Array.insertAt i n p)
+
 -- | `symmetric n` gives you the entire group S_n.
-symmetric :: Int -> List Sym
-symmetric 0 = Nil
-symmetric 1 = Sym (1 : Nil) : Nil
-symmetric n | n < 0 = Nil
-symmetric n = do
-  s <- symmetric (n - 1)
-  i <- List.range 0 (n - 1)
-  maybe Nil (pure <<< Sym) (List.insertAt i n (unSym s))
+symmetric :: Int -> Array Sym
+symmetric = map (Sym <<< reduce) <<< permutations
 
 -- | `alternating n` gives you the entire group A_n.
-alternating :: Int -> List Sym
-alternating = List.filter ((_ == 1) <<< sgn) <<< symmetric
+alternating :: Int -> Array Sym
+alternating = Array.filter ((_ == 1) <<< sgn) <<< symmetric
 
--- | Compose two permuatations. If one is from a larger underlying set, then
--- | the one from the smaller set is considered as a bijection on the larger
--- | set which fixes the extra elements.
 composeSym :: Sym -> Sym -> Sym
 composeSym s1 s2 =
-  let n = max (setSize s1) (setSize s2)
+  let n = max (minN s1) (minN s2)
       f = asFunction s1 <<< asFunction s2
-   in Sym (map (f $ _) (List.range 1 n))
+   in Sym (reduce (map (f $ _) (Array.range 1 n)))
+
+invertSym :: Sym -> Sym
+invertSym =
+  -- no need to reduce here since minN is unchanged
+  Sym
+  <<< map snd
+  <<< Array.sort
+  <<< Array.mapWithIndex (flip Tuple)
+  <<< unSym
 
 -- | The order of a permutation; the smallest positive integer n such that s^n
 -- | is the identity.
 order :: Sym -> Int
-order s = foldl lcm 1 (map List.length (asCycles s))
+order = foldl lcm 1 <<< map List.length <<< asCycles
 
 -- | The inversions of a permutation, i.e. pairs of points x, y such that x <
 -- | y and s x > s y.
-inversions :: Sym -> List (Tuple Int Int)
+inversions :: Sym -> Array (Tuple Int Int)
 inversions s =
-  let n = setSize s
+  let n = minN s
       f = asFunction s
-   in do x <- List.range 1 (n-1)
-         y <- List.range (x+1) n
+   in do x <- Array.range 1 (n - 1)
+         y <- Array.range (x + 1) n
          if f x > f y then pure (Tuple x y) else mempty
 
 -- | The sign of a permutation; 1 if there are an even number of inversions,
 -- | -1 otherwise.
 sgn :: Sym -> Int
-sgn s = if Int.even (List.length (inversions s)) then 1 else -1
+sgn s = if Int.even (Array.length (inversions s)) then 1 else -1
