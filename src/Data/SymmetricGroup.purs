@@ -11,7 +11,7 @@ module Data.SymmetricGroup
 
 import Prelude
 import Control.MonadPlus (guard)
-import Data.Monoid (mempty)
+import Data.Monoid (class Monoid, mempty)
 import Data.Maybe
 import Data.Tuple
 import Data.Int as Int
@@ -40,6 +40,12 @@ instance showSym :: Show Sym where
      in if List.null cs
           then "ι"
           else foldMap showCycle cs
+
+instance semigroupSym :: Semigroup Sym where
+  append = composeSym
+
+instance monoidSym :: Monoid Sym where
+  mempty = Sym (1 : Nil)
 
 newtype Set a = Set (Map a Unit)
 
@@ -73,15 +79,15 @@ cycleOf s init =
     then Nil
     else List.reverse (go (init : Nil) init)
   where
-  f i = fromJust (applySym s i)
+  f = asFunction s
   go cyc i =
     let fi = f i
      in if fi == init
           then cyc
           else go (fi : cyc) fi
 
-applySym :: Sym -> Int -> Maybe Int
-applySym (Sym xs) i = List.index xs (i - 1)
+asFunction :: Sym -> Int -> Int
+asFunction (Sym xs) i = fromMaybe i (List.index xs (i - 1))
 
 -- | The number of elements in the underlying set of a bijection.
 setSize :: Sym -> Int
@@ -104,12 +110,21 @@ symmetric n = do
 alternating :: Int -> List Sym
 alternating = List.filter ((_ == 1) <<< sgn) <<< symmetric
 
+-- | Compose two permuatations. If one is from a larger underlying set, then
+-- | the one from the smaller set is considered as a bijection on the larger
+-- | set which fixes the extra elements.
+composeSym :: Sym -> Sym -> Sym
+composeSym s1 s2 =
+  let n = max (setSize s1) (setSize s2)
+      f = asFunction s1 <<< asFunction s2
+   in Sym (map (f $ _) (List.range 1 n))
+
 -- | The inversions of a permutation, i.e. pairs of points x, y such that x <
 -- | y and s x > s y.
 inversions :: Sym -> List (Tuple Int Int)
 inversions s =
   let n = setSize s
-      f i = unsafePartial (fromJust (applySym s i))
+      f = asFunction s
    in do x <- List.range 1 (n-1)
          y <- List.range (x+1) n
          if f x > f y then pure (Tuple x y) else mempty
