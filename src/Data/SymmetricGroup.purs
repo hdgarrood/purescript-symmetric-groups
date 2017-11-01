@@ -112,7 +112,6 @@ inversions s =
       f i = unsafePartial (fromJust (applySym s i))
    in do x <- List.range 1 (n-1)
          y <- List.range (x+1) n
-         guard (x < y)
          if f x > f y then pure (Tuple x y) else mempty
 
 -- | The sign of a permutation; 1 if there are an even number of inversions,
