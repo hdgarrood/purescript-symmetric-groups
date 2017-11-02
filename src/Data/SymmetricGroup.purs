@@ -20,11 +20,10 @@ module Data.SymmetricGroup where
 --  ) where
 
 import Prelude
-import Control.MonadPlus (guard)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Tuple (Tuple(..), snd)
 import Data.Monoid (class Monoid, mempty, power)
 import Data.Group (class Group)
-import Data.Maybe
-import Data.Tuple
 import Data.Int as Int
 import Data.String as String
 import Data.Foldable (class Foldable, foldl, foldMap, maximum)
@@ -236,12 +235,12 @@ subgroup = foldl (flip extendSubgroup) trivialSubgroup <<< setToArray
 
 -- | If `h` is a subgroup, then `actLeft s h` gives the coset formed by
 -- | applying `s` to each element of `h` on the left.
-actLeft :: Sym -> Set Sym -> Set Sym
+actLeft :: forall a. Ord a => Group a => a -> Set a -> Set a
 actLeft s = mapSet (s <> _)
 
 -- | If `h` is a subgroup of `g`, then `cosets h g` gives the set of cosets of
 -- | `h` in `g`. Otherwise, the behaviour of this function is undefined.
-cosets :: Set Sym -> Set Sym -> Set (Set Sym)
+cosets :: forall a. Ord a => Group a => Set a -> Set a -> Set (Set a)
 cosets h = mapSet (\t -> actLeft t h)
 
 -- Utilities
