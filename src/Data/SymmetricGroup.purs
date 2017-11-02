@@ -26,7 +26,7 @@ import Data.Monoid (class Monoid, mempty, power)
 import Data.Group (class Group)
 import Data.Int as Int
 import Data.String as String
-import Data.Foldable (class Foldable, foldl, foldMap, maximum)
+import Data.Foldable (class Foldable, foldl, foldMap, foldr, maximum)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Array as Array
@@ -275,3 +275,8 @@ instance showSet :: Show a => Show (Set a) where
 
 derive instance eqSet :: Eq a => Eq (Set a)
 derive instance ordSet :: Ord a => Ord (Set a)
+
+instance foldableSet :: Foldable Set where
+  foldr f z = foldr f z <<< setToArray
+  foldl f z = foldl f z <<< setToArray
+  foldMap f = foldMap f <<< setToArray
