@@ -7,6 +7,8 @@ module Main where
 
 import Prelude
 import Data.SymmetricGroup
+import Data.Set (Set)
+import Data.Set as Set
 import Data.Foldable (all)
 import Data.List ((:), List(..))
 import Data.Array as Array
@@ -19,7 +21,7 @@ import Test.Assert (assert)
 import Data.Monoid (mempty)
 
 testWith _H _G =
-  let cosets_ = setToArray (cosets _H _G)
+  let cosets_ = Array.fromFoldable (cosets _H _G)
       labelCoset c = map (_ + 1) (Array.elemIndex c cosets_)
       unlabelCoset i = Array.index cosets_ (i - 1)
       t = Array.length cosets_
@@ -29,7 +31,7 @@ testWith _H _G =
                    aH <- unlabelCoset i
                    let gaH = actLeft g aH
                    labelCoset gaH)
-      graph = map (\g -> Tuple g (phi g)) (setToArray _G)
+      graph = map (\g -> Tuple g (phi g)) (Array.fromFoldable _G)
   in do
     for_ _G \g ->
       for_ cosets_ \aH ->
@@ -40,7 +42,7 @@ testWith _H _G =
 
 -- The Klein four-group; isomorphic to C_2 x C_2.
 _V4 =
-  setFromFoldable [ mempty
+  Set.fromFoldable [ mempty
                   , fromCycles ((1:2:Nil):(3:4:Nil):Nil)
                   , fromCycles ((1:3:Nil):(2:4:Nil):Nil)
                   , fromCycles ((1:4:Nil):(2:3:Nil):Nil)
@@ -48,11 +50,11 @@ _V4 =
 
 
 main =
-  -- Note: V4 is normal in this S4, i.e. S4 is not simple and the kernel may
-  -- be (in fact is) nontrivial.
-  let _S4 = setFromFoldable (symmetric 4)
-      _A4 = setFromFoldable (alternating 4)
-      _A5 = setFromFoldable (alternating 5)
+  -- Note: V4 is normal in this S4, i.e. S4 is not simple and the kernel of phi
+  -- in the case where H = V4 and G = S4 can be (in fact is) nontrivial.
+  let _S4 = Set.fromFoldable (symmetric 4)
+      _A4 = Set.fromFoldable (alternating 4)
+      _A5 = Set.fromFoldable (alternating 5)
   in do
     log "=== V4 <= S4 ==="
     testWith _V4 _S4
