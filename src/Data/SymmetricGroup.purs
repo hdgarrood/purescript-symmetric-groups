@@ -1,23 +1,23 @@
-module Data.SymmetricGroup where
---  ( Sym
---  , symmetric
---  , alternating
---  , permutations
---  , asCycles
---  , asFunction
---  , fromCycle
---  , fromCycles
---  , cycleOf
---  , minN
---  , unSym
---  , inversions
---  , sgn
---  , order
---  , trivialSubgroup
---  , subgroup
---  , actLeft
---  , cosets
---  ) where
+module Data.SymmetricGroup
+  ( Sym
+  , symmetric
+  , alternating
+  , permutations
+  , asCycles
+  , asFunction
+  , fromCycle
+  , fromCycles
+  , cycleOf
+  , minN
+  , unSym
+  , inversions
+  , sgn
+  , order
+  , trivialSubgroup
+  , subgroup
+  , actLeft
+  , cosets
+  ) where
 
 import Prelude
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
