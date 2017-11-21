@@ -28,9 +28,7 @@ import Data.Int as Int
 import Data.String as String
 import Data.Set (Set)
 import Data.Set as Set
-import Data.Foldable (class Foldable, foldl, foldMap, foldr, maximum)
-import Data.Map (Map)
-import Data.Map as Map
+import Data.Foldable (foldl, foldMap, maximum)
 import Data.Array as Array
 import Data.List (List(..), (:))
 import Data.List as List
