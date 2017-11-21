@@ -212,7 +212,11 @@ inversions s =
 -- | The sign of a permutation; 1 if there are an even number of inversions,
 -- | -1 otherwise.
 sgn :: Sym -> Int
-sgn s = if Int.even (Array.length (inversions s)) then 1 else -1
+sgn = foldl (*) 1 <<< map cycleSgn <<< asCycles
+  where
+  cycleSgn :: List Int -> Int
+  cycleSgn Nil = 1
+  cycleSgn xs = if Int.odd (List.length xs) then 1 else -1
 
 trivialSubgroup :: Set Sym
 trivialSubgroup = Set.fromFoldable [mempty]

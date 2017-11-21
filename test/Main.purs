@@ -3,6 +3,7 @@ module Test.Main where
 import Prelude
 import Data.SymmetricGroup
 
+import Data.Int as Int
 import Data.Monoid (mempty)
 import Data.Group (ginverse)
 import Data.Foldable (for_, product)
@@ -40,6 +41,10 @@ main = do
   for_ s5 \a -> do
     assert (a <> ginverse a == mempty)
     assert (ginverse a <> a == mempty)
+
+  log "sgn = parity of inversions"
+  for_ s4 \a ->
+    assert (sgn a == if Int.even (Array.length (inversions a)) then 1 else -1)
 
   log "sgn homomorphism"
   for_ s4 \a ->
