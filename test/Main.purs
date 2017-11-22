@@ -4,9 +4,10 @@ import Prelude
 import Data.SymmetricGroup
 
 import Data.Int as Int
-import Data.Monoid (mempty)
+import Data.List as List
+import Data.Monoid (mempty, power)
 import Data.Group (ginverse)
-import Data.Foldable (for_, product)
+import Data.Foldable (for_, product, all)
 import Data.Array as Array
 import Test.Assert (assert)
 import Control.Monad.Eff.Console (log)
@@ -52,5 +53,12 @@ main = do
       assert (parity a + parity b == parity (a <> b))
 
   log "fromCycles <<< asCycles = id"
-  for_ s5 \s ->
-    assert (fromCycles (asCycles s) == s)
+  for_ s5 \a ->
+    assert (fromCycles (asCycles a) == a)
+
+  log "order"
+  for_ s5 \a ->
+    let n = order a
+    in if n > 1
+         then assert (all (_ /= mempty) (map (power a) (List.range 1 (n - 1))))
+         else pure unit
