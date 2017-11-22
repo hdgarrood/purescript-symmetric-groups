@@ -12,7 +12,7 @@
     "purescript-lists": "^4.10.0",
     "purescript-sets": "^3.1.0",
     "purescript-strings": "^3.3.1",
-    "purescript-integers": "^3.1.0",
+    "purescript-integers": "^3.2.0",
     "purescript-group": "^3.1.0",
     "purescript-assert": "^3.0.0"
   },

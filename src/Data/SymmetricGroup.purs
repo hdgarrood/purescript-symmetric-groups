@@ -11,12 +11,13 @@ module Data.SymmetricGroup
   , minN
   , unSym
   , inversions
-  , sgn
+  , parity
   , order
   , trivialSubgroup
   , subgroup
   , actLeft
   , cosets
+  , module ReExports
   ) where
 
 import Prelude
@@ -25,10 +26,12 @@ import Data.Tuple (Tuple(..), snd)
 import Data.Monoid (class Monoid, mempty, power)
 import Data.Group (class Group)
 import Data.Int as Int
+import Data.Int (Parity(..))
+import Data.Int (Parity(..)) as ReExports
 import Data.String as String
 import Data.Set (Set)
 import Data.Set as Set
-import Data.Foldable (foldl, foldMap, maximum)
+import Data.Foldable (foldl, foldMap, maximum, sum)
 import Data.Array as Array
 import Data.List (List(..), (:))
 import Data.List as List
@@ -177,7 +180,7 @@ symmetric = map (Sym <<< reduce) <<< permutations
 
 -- | `alternating n` gives you the entire group A_n.
 alternating :: Int -> Array Sym
-alternating = Array.filter ((_ == 1) <<< sgn) <<< symmetric
+alternating = Array.filter ((_ == Even) <<< parity) <<< symmetric
 
 composeSym :: Sym -> Sym -> Sym
 composeSym s1 s2 =
@@ -209,14 +212,29 @@ inversions s =
          y <- Array.range (x + 1) n
          if f x > f y then pure (Tuple x y) else mempty
 
--- | The sign of a permutation; 1 if there are an even number of inversions,
--- | -1 otherwise.
-sgn :: Sym -> Int
-sgn = foldl (*) 1 <<< map cycleSgn <<< asCycles
+-- | The parity of a permutation. All permutations can be expressed as products
+-- | of 2-cycles: for example (1 2 3) can be written as (2 3)(1 3). The parity
+-- | of a permutation is defined as the parity of the number of 2-cycles when
+-- | it is written as a product of 2-cycles, so e.g. (1 2 3) is even.
+-- |
+-- | This function is a group homomorphism from the group Sym to the additive
+-- | group of the field of two elements (here represented by the `Parity`
+-- | type); that is,
+-- |
+-- | ```purescript
+-- | parity f + parity g = parity (f <> g)
+-- | ```
+-- |
+-- | holds for all permutations `f`, `g`.
+-- |
+-- | The parity of a permutation is sometimes also called the "sign" or
+-- | "signature".
+parity :: Sym -> Parity
+parity = sum <<< map cycleSgn <<< asCycles
   where
-  cycleSgn :: List Int -> Int
-  cycleSgn Nil = 1
-  cycleSgn xs = if Int.odd (List.length xs) then 1 else -1
+  cycleSgn :: List Int -> Parity
+  cycleSgn Nil = Even
+  cycleSgn xs = if Int.odd (List.length xs) then Even else Odd
 
 trivialSubgroup :: Set Sym
 trivialSubgroup = Set.fromFoldable [mempty]

@@ -42,14 +42,14 @@ main = do
     assert (a <> ginverse a == mempty)
     assert (ginverse a <> a == mempty)
 
-  log "sgn = parity of inversions"
-  for_ s4 \a ->
-    assert (sgn a == if Int.even (Array.length (inversions a)) then 1 else -1)
+  log "parity = parity of inversions"
+  for_ s5 \a ->
+    assert (parity a == Int.parity (Array.length (inversions a)))
 
-  log "sgn homomorphism"
+  log "parity is a group homomorphism"
   for_ s4 \a ->
     for_ s4 \b ->
-      assert (sgn a * sgn b == sgn (a <> b))
+      assert (parity a + parity b == parity (a <> b))
 
   log "fromCycles <<< asCycles = id"
   for_ s5 \s ->
