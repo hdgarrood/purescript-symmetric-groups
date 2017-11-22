@@ -1,18 +1,24 @@
 module Data.SymmetricGroup
   ( Sym
-  , symmetric
-  , alternating
-  , permutations
-  , asCycles
-  , asFunction
+  -- construction
   , fromCycle
   , fromCycles
+
+  -- elimination
+  , asCycles
+  , asFunction
+
+  -- attributes of permutations
   , cycleOf
   , minN
-  , unSym
   , inversions
   , parity
   , order
+
+  -- subgroups
+  , permutations
+  , symmetric
+  , alternating
   , trivialSubgroup
   , subgroup
   , actLeft
@@ -101,6 +107,15 @@ instance monoidSym :: Monoid Sym where
 instance groupSym :: Group Sym where
   ginverse = invertSym
 
+-- | Represent a permutation as a list of cycles. Note that
+-- | `asCycles <<< fromCycles` is not equal to `id`, because the cycles might
+-- | come out in a different order. However, `fromCycles <<< asCycles` is equal
+-- | to `id`.
+-- |
+-- | ```purescript
+-- | asCycles (fromCycles ((1 : 2 : 3 : Nil) : Nil))
+-- |  == (1 : 2 : 3 : Nil) : Nil
+-- | ```
 asCycles :: Sym -> List (List Int)
 asCycles s = List.sort (go Nil (oneUpTo n))
   where
@@ -114,7 +129,15 @@ asCycles s = List.sort (go Nil (oneUpTo n))
             cycles' = if List.null c then cycles else c : cycles
          in go cycles' (foldl (flip Set.delete) points' (i : c))
 
--- Compute the cycle containing a given point.
+-- | Compute the cycle containing a given point.
+-- |
+-- | ```purescript
+-- | f = fromCycles ((1 : 3 : Nil) : (2 : 4 : Nil) : Nil)
+-- |
+-- | cycleOf f 1 == 1 : 3 : Nil
+-- | cycleOf f 2 == 2 : 4 : Nil
+-- | cycleOf f 5 == Nil
+-- | ```
 cycleOf :: Sym -> Int -> List Int
 cycleOf s init =
   if f init == init
@@ -128,9 +151,30 @@ cycleOf s init =
           then cyc
           else go (fi : cyc) fi
 
+-- | Convert a permutation into a regular function.
+-- |
+-- | ```purescript
+-- | f = asFunction (fromCycles ((1 : 2 : 3 : Nil) : Nil))
+-- |
+-- | f 1 == 2
+-- | f 2 == 3
+-- | f 3 == 1
+-- | f 4 == 4
+-- | f (-1) == (-1)
+-- | ```
 asFunction :: Sym -> Int -> Int
 asFunction (Sym xs) i = fromMaybe i (Array.index xs (i - 1))
 
+-- | Construct a permutation from a list of cycles.
+-- |
+-- | ```purescript
+-- | f = fromCycles ((1 : 3 : Nil) : (2 : 4 : Nil) : Nil)
+-- |
+-- | f 1 == 3
+-- | f 2 == 4
+-- | f 3 == 1
+-- | f 4 == 2
+-- | ```
 fromCycles :: List (List Int) -> Sym
 fromCycles = foldMap fromCycle
 
@@ -157,8 +201,8 @@ cycleGraph (i1:i2:tail) = List.reverse $ go (pure (Tuple i1 i2)) i2 tail
   go acc im Nil        = Tuple im i1 : acc
   go acc im (im1:rest) = go (Tuple im im1 : acc) im1 rest
 
--- | The minimum natural number N for which the given bijection fixes all n >=
--- | N.
+-- | The minimum natural number N for which the given permutation fixes all n
+-- | >= N.
 minN :: Sym -> Int
 minN (Sym xs) = max 1 (Array.length xs)
 
@@ -202,8 +246,11 @@ invertSym =
 order :: Sym -> Int
 order = foldl lcm 1 <<< map List.length <<< asCycles
 
--- | The inversions of a permutation, i.e. pairs of points x, y such that x <
--- | y and s x > s y.
+-- | The inversions of a permutation, i.e. for a permutation f, this function
+-- | returns all pairs of points x, y such that `x < y` and `f x > f y`.
+-- |
+-- | The parity of the number of inversions of a permutation is equal to the
+-- | parity of the permutation itself.
 inversions :: Sym -> Array (Tuple Int Int)
 inversions s =
   let n = minN s
