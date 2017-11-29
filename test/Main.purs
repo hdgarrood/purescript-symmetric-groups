@@ -5,6 +5,7 @@ import Data.SymmetricGroup
 
 import Data.Int as Int
 import Data.List as List
+import Data.List (List(..), (:))
 import Data.Monoid (mempty, power)
 import Data.Group (ginverse)
 import Data.Foldable (for_, product, all)
@@ -62,3 +63,6 @@ main = do
     in if n > 1
          then assert (all (_ /= mempty) (map (power a) (List.range 1 (n - 1))))
          else pure unit
+
+  log "fromCycle ignores duplicates"
+  assert (fromCycle (1:2:Nil) == fromCycle (1:2:1:Nil))

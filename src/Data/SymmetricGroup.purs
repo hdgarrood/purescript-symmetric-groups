@@ -179,10 +179,10 @@ fromCycles :: List (List Int) -> Sym
 fromCycles = foldMap fromCycle
 
 -- | Generate a permutation given a single cycle. If the given list includes
--- | nonpositive elements they will be ignored.
+-- | nonpositive or duplicate elements they will be ignored.
 fromCycle :: List Int -> Sym
 fromCycle is =
-  let js = List.filter (_ > 0) is
+  let js = List.nub $ List.filter (_ > 0) is
       n = fromMaybe 1 (maximum js)
       orig = Array.range 1 n
       graph = cycleGraph js
