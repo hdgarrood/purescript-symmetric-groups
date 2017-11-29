@@ -66,3 +66,7 @@ main = do
 
   log "fromCycle ignores duplicates"
   assert (fromCycle (1:2:Nil) == fromCycle (1:2:1:Nil))
+
+  log "fromCycle ignores nonpositives"
+  assert (fromCycle (1:2:Nil) == fromCycle (1:2:0:Nil))
+  assert (fromCycle (1:2:Nil) == fromCycle (1:2:(-1):Nil))
