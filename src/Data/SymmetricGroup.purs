@@ -278,8 +278,12 @@ cycleGraph (i1:i2:tail) = List.reverse $ go (pure (Tuple i1 i2)) i2 tail
 
 -- | The smallest natural number N for which the given permutation fixes all
 -- | numbers greater than or equal to N.
+-- |
+-- | ```purescript
+-- | minN (fromCycle (1:2:Nil)) == 3
+-- | ```
 minN :: Sym -> Int
-minN (Sym xs) = max 1 (Array.length xs)
+minN (Sym xs) = Array.length xs + 1
 
 unSym :: Sym -> Array Int
 unSym (Sym xs) = xs

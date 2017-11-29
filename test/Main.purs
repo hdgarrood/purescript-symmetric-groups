@@ -70,3 +70,8 @@ main = do
   log "fromCycle ignores nonpositives"
   assert (fromCycle (1:2:Nil) == fromCycle (1:2:0:Nil))
   assert (fromCycle (1:2:Nil) == fromCycle (1:2:(-1):Nil))
+
+  log "minN"
+  assert (minN mempty == 1)
+  assert (minN (fromCycle (1:2:Nil)) == 3)
+  for_ s5 \a -> assert (minN a <= 6)
