@@ -1,3 +1,76 @@
+-- | One important example of a group which arises very often in group theory
+-- | and its applications is the *symmetric group* on some set X, which is
+-- | the group of bijective functions from X to itself. The group operation
+-- | here is function composition and the identity element is the identity
+-- | function. (If I've lost you by this point, the first few of chapters of
+-- | the [PureScript numeric hierarchy
+-- | guide](https://a-guide-to-the-purescript-numeric-hierarchy.readthedocs.io/en/latest/)
+-- | should help.)
+-- |
+-- | We often restrict our attention to just the symmetric groups on finite
+-- | sets, since they are a little easier to deal with. Since we are dealing
+-- | with a finite set, we might as well label the elements of the set from 1
+-- | up to n (where n is the size of the set); the group structure will be
+-- | the same no matter how we have labelled the elements of the underlying
+-- | set. The symmetric group on a set X can be written S(X); if X is the set
+-- | {1,2,...,n} we often abuse notation and write the group S(X) as just
+-- | S(n).
+-- |
+-- | Some vocabulary first: if f is a function from the set X to itself, we
+-- | say that x is a *fixed point* of f if and only if f(x) = x. We sometimes
+-- | say that "f *fixes* x" instead, since this is less of a mouthful than "x
+-- | is a fixed point of f".
+-- |
+-- | When attempting to represent the group S(n) in PureScript, one approach
+-- | might be to define a type constructor of kind `Type -> Type`, where the
+-- | argument is a type-level natural number representing n. This approach
+-- | quickly runs into a problem, though, which is that there is no
+-- | (ergonomic) type for natural numbers less than or equal to a certain
+-- | number. For example, Idris has `Fin n`, which is the type of integers
+-- | between 0 and n-1. Of course, it is possible to define a similar type in
+-- | PureScript, but without dependent types it will not be nearly as
+-- | comfortable to use as Idris' `Fin`. However, we want to have some way of
+-- | converting elements of this set to standard PureScript functions\*, but
+-- | without an ergonomic type `Fin` we will need to use `Partial`
+-- | constraints (yuck).
+-- |
+-- | We also would like to be able to do things like embed S(n) into S(n+1)
+-- | without too much effort (that is, without having to convert between two
+-- | different types): note that every permutation f on a set of n elements
+-- | can be extended to a permutation f' on a set of n+1 elements just by
+-- | saying that f' fixes n+1 and does the same as f for everything else,
+-- | i.e. f'(k) = f(k) for all k ≤ n.
+-- |
+-- | There is a simple trick we can use to address this. We say that a
+-- | permutation is *finitary* if and only if it fixes all but finitely many
+-- | points. For example, the permutation on the set of natural numbers which
+-- | swaps 1 and 2 and fixes everything else is finitary; the permutation
+-- | which swaps every even number with the odd number preceding it is not.
+-- | It turns out that the product of two finitary permutations is itself
+-- | finitary, and also that the inverse of a finitary permutation is
+-- | finitary (exercise!). Therefore the set of finitary permutations on a
+-- | set X is a group (in fact a subgroup of S(X)), which we will refer to as
+-- | FS(X).
+-- |
+-- | The design adopted by this library is to define a type representing the
+-- | group FS(ℕ) of finitary permutations on the natural numbers. Then, for
+-- | any natural number n, there is a natural embedding of S(n) into FS(ℕ)
+-- | by just fixing everything greater than or equal to n; in the same way
+-- | there is a natural embedding of S(k) into S(n) (within FS(ℕ)) whenever k
+-- | < n.
+-- |
+-- | Perhaps surprisingly, [Cayley's
+-- | Theorem](https://en.wikipedia.org/wiki/Cayley's_theorem) tells us that
+-- | any finite group is isomorphic to a subgroup of S(n), so we can in fact
+-- | represent any finite group at all using this library (although this
+-- | fact might mostly just be a curiosity).
+-- |
+-- | ---
+-- |
+-- | \*note: we don't use standard PureScript functions directly, as it is
+-- | not an efficient representation for many of the operations we would like
+-- | to be able to do, and also it is harder to guarantee that the function
+-- | in question is bijective.
 module Data.SymmetricGroup
   ( Sym
   -- construction
@@ -42,19 +115,14 @@ import Data.Array as Array
 import Data.List (List(..), (:))
 import Data.List as List
 
--- | The type `Sym` represents the group of bijections f on the set of natural
--- | numbers, which fix all but finitely many points. Equivalently, there
--- | exists some natural N such that for all n >= N, n is a fixed point of f.
--- | The group operation is composition, and the identity element is the
--- | identity function.
+-- | The type `Sym` represents the group FS(ℕ) of finitary permutations of the
+-- | set of natural numbers. Values of this type cannot be constructed from
+-- | functions of type `Int -> Int`, because we cannot easily verify that these
+-- | are bijective. Instead, use `fromCycle` or `fromCycles`.
 -- |
--- | This slightly strange representation allows us to easily consider, eg, S_5
--- | as a group in its own right (by identifying it with the subgroup of
--- | bijections which fix all n >= 6), or as a subgroup of S_6, or of S_7, and
--- | so on.
--- |
--- | In particular, every finite symmetric group S_n can be identified with a
--- | subgroup of the `Sym` group in the above way.
+-- | A value of this type has a runtime representation of an array with k
+-- | elements, where k is the largest number which is not a fixed point of f;
+-- | if k is very large this may be a problem.
 newtype Sym = Sym (Array Int)
 
 -- A value of type `Sym` is represented by an array of integers such that the
@@ -108,9 +176,9 @@ instance groupSym :: Group Sym where
   ginverse = invertSym
 
 -- | Represent a permutation as a list of cycles. Note that
--- | `asCycles <<< fromCycles` is not equal to `id`, because the cycles might
--- | come out in a different order. However, `fromCycles <<< asCycles` is equal
--- | to `id`.
+-- | `asCycles <<< fromCycles` is not equal to `id`, because in general there
+-- | are lots of different ways to write any given permutation as a product of
+-- | cycles. However, `fromCycles <<< asCycles` is equal to `id`.
 -- |
 -- | ```purescript
 -- | asCycles (fromCycles ((1 : 2 : 3 : Nil) : Nil))
@@ -151,10 +219,11 @@ cycleOf s init =
           then cyc
           else go (fi : cyc) fi
 
--- | Convert a permutation into a regular function.
+-- | Convert a finitary permutation into a regular function. The resulting
+-- | function fixes all negative numbers.
 -- |
 -- | ```purescript
--- | f = asFunction (fromCycles ((1 : 2 : 3 : Nil) : Nil))
+-- | f = asFunction (fromCycle (1 : 2 : 3 : Nil))
 -- |
 -- | f 1 == 2
 -- | f 2 == 3
@@ -168,7 +237,7 @@ asFunction (Sym xs) i = fromMaybe i (Array.index xs (i - 1))
 -- | Construct a permutation from a list of cycles.
 -- |
 -- | ```purescript
--- | f = fromCycles ((1 : 3 : Nil) : (2 : 4 : Nil) : Nil)
+-- | f = asFunction (fromCycles ((1 : 3 : Nil) : (2 : 4 : Nil) : Nil))
 -- |
 -- | f 1 == 3
 -- | f 2 == 4
@@ -180,6 +249,12 @@ fromCycles = foldMap fromCycle
 
 -- | Generate a permutation given a single cycle. If the given list includes
 -- | nonpositive or duplicate elements they will be ignored.
+-- |
+-- | ```purescript
+-- | fromCycle (1:2:Nil) == fromCycle (1:2:1:Nil)
+-- | fromCycle (1:2:Nil) == fromCycle (1:2:0:Nil)
+-- | fromCycle (1:2:Nil) == fromCycle (1:2:(-1):Nil)
+-- | ```
 fromCycle :: List Int -> Sym
 fromCycle is =
   let js = List.nub $ List.filter (_ > 0) is
@@ -201,8 +276,8 @@ cycleGraph (i1:i2:tail) = List.reverse $ go (pure (Tuple i1 i2)) i2 tail
   go acc im Nil        = Tuple im i1 : acc
   go acc im (im1:rest) = go (Tuple im im1 : acc) im1 rest
 
--- | The minimum natural number N for which the given permutation fixes all n
--- | >= N.
+-- | The smallest natural number N for which the given permutation fixes all
+-- | numbers greater than or equal to N.
 minN :: Sym -> Int
 minN (Sym xs) = max 1 (Array.length xs)
 
@@ -242,7 +317,8 @@ invertSym =
   <<< unSym
 
 -- | The order of a permutation; the smallest positive integer n such that s^n
--- | is the identity.
+-- | is the identity. Restricting `Sym` to finitary permutations ensures that
+-- | this is always finite.
 order :: Sym -> Int
 order = foldl lcm 1 <<< map List.length <<< asCycles
 
@@ -283,6 +359,7 @@ parity = sum <<< map cycleSgn <<< asCycles
   cycleSgn Nil = Even
   cycleSgn xs = if Int.odd (List.length xs) then Even else Odd
 
+-- | The set containing just the identity element of a group (i.e. `mempty`).
 trivialSubgroup :: forall a. Ord a => Group a => Set a
 trivialSubgroup = Set.fromFoldable [mempty]
 
