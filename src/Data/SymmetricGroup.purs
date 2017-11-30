@@ -55,9 +55,8 @@
 -- | The design adopted by this library is to define a type representing the
 -- | group FS(ℕ) of finitary permutations on the natural numbers. Then, for
 -- | any natural number n, there is a natural embedding of S(n) into FS(ℕ)
--- | by just fixing everything greater than or equal to n; in the same way
--- | there is a natural embedding of S(k) into S(n) (within FS(ℕ)) whenever k
--- | < n.
+-- | by just fixing everything greater than n; in the same way there is a
+-- | natural embedding of S(k) into S(n) (within FS(ℕ)) whenever k < n.
 -- |
 -- | Perhaps surprisingly, [Cayley's
 -- | Theorem](https://en.wikipedia.org/wiki/Cayley's_theorem) tells us that
@@ -123,9 +122,21 @@ import Data.List as List
 -- | functions of type `Int -> Int`, because we cannot easily verify that these
 -- | are bijective. Instead, use `fromCycle` or `fromCycles`.
 -- |
--- | The runtime representation of a value of this type is an array with k
--- | elements, where k is the largest number which is not a fixed point of f;
--- | if k is very large this may be a problem.
+-- | If f is a permutation, and k is the largest number which is not a fixed
+-- | point of f, then the amount of memory required to represent f at runtime
+-- | is O(k). If k is very large, this may be a problem.
+-- |
+-- | There does not appear to be consistent standard for which way composition
+-- | goes; some authors write `f <> g` to indicate the permutation given by
+-- | first applying `g` and then `f`, and others use the same notation to
+-- | indicate the permutation given by first applying `f` and then applying
+-- | `g`. This is very unfortunate! The decision taken by this library is that
+-- | the group operation of `Sym` corresponds to normal function composition,
+-- | `<<<` (see also: the docs for `asFunction`).
+-- |
+-- | The time complexity of the group operation `f <> g` is O(max(n,m)), where
+-- | n is the largest non-fixed point of f, and m is the largest non-fixed
+-- | point of g. The time complexity of `ginverse f` is O(n).
 newtype Sym = Sym (Array Int)
 
 -- A value of type `Sym` is represented by an array of integers such that the
@@ -186,7 +197,16 @@ instance groupSym :: Group Sym where
 -- | ```purescript
 -- | asCycles (fromCycles ((1 : 2 : 3 : Nil) : Nil))
 -- |  == (1 : 2 : 3 : Nil) : Nil
+-- |
+-- | asCycles (fromCycles ((3 : 1 : 2 : Nil) : Nil))
+-- |  == (1 : 2 : 3 : Nil) : Nil
 -- | ```
+-- |
+-- | *Time complexity: Ω((n log n)(m log m)), where n is the length of the
+-- | longest cycle in the result and m is the number of cycles in the result
+-- | (note that Ω denotes a lower bound whereas O denotes an upper bound).
+-- | The actual time complexity is probably worse than this but I gave up
+-- | trying to calculate it.*
 asCycles :: Sym -> List (List Int)
 asCycles s = List.sort (go Nil (oneUpTo n))
   where
@@ -209,6 +229,8 @@ asCycles s = List.sort (go Nil (oneUpTo n))
 -- | cycleOf f 2 == 2 : 4 : Nil
 -- | cycleOf f 5 == Nil
 -- | ```
+-- |
+-- | *Time complexity: O(n), where n is the length of the resulting cycle.*
 cycleOf :: Sym -> Int -> List Int
 cycleOf s init =
   if f init == init
@@ -234,6 +256,15 @@ cycleOf s init =
 -- | f 4 == 4
 -- | f (-1) == (-1)
 -- | ```
+-- |
+-- | This function agrees with the group operation of `Sym` in the following
+-- | sense: for all `f, g :: Sym`, we have that:
+-- |
+-- | ```purescript
+-- | asFunction f <<< asFunction g == asFunction (f <> g)
+-- | ```
+-- |
+-- | *Time complexity: O(1).*
 asFunction :: Sym -> Int -> Int
 asFunction (Sym xs) i = fromMaybe i (Array.index xs (i - 1))
 
@@ -247,17 +278,21 @@ asFunction (Sym xs) i = fromMaybe i (Array.index xs (i - 1))
 -- | f 3 == 1
 -- | f 4 == 2
 -- | ```
+-- | *Time complexity: O(nm), where n is the length of the longest cycle in the
+-- | provided list, and m is the length of the list.*
 fromCycles :: List (List Int) -> Sym
 fromCycles = foldMap fromCycle
 
--- | Generate a permutation given a single cycle. If the given list includes
--- | nonpositive or duplicate elements they will be ignored.
+-- | Generate a permutation from a single cycle. If the given cycle includes
+-- | nonpositive or duplicate elements, they will be ignored.
 -- |
 -- | ```purescript
 -- | fromCycle (1:2:Nil) == fromCycle (1:2:1:Nil)
 -- | fromCycle (1:2:Nil) == fromCycle (1:2:0:Nil)
 -- | fromCycle (1:2:Nil) == fromCycle (1:2:(-1):Nil)
 -- | ```
+-- |
+-- | *Time complexity: O(n), where n is the length of the input list/cycle.*
 fromCycle :: List Int -> Sym
 fromCycle is =
   let js = List.nub $ List.filter (_ > 0) is
@@ -279,19 +314,27 @@ cycleGraph (i1:i2:tail) = List.reverse $ go (pure (Tuple i1 i2)) i2 tail
   go acc im Nil        = Tuple im i1 : acc
   go acc im (im1:rest) = go (Tuple im im1 : acc) im1 rest
 
--- | The smallest natural number N for which the given permutation fixes all
--- | numbers greater than or equal to N.
+-- | The smallest natural number N for which the given permutation fixes
+-- | all numbers greater than or equal to N.
 -- |
 -- | ```purescript
 -- | minN (fromCycle (1:2:Nil)) == 3
 -- | ```
+-- |
+-- | *Time complexity: O(1).*
 minN :: Sym -> Int
 minN (Sym xs) = Array.length xs + 1
 
-unSym :: Sym -> Array Int
-unSym (Sym xs) = xs
-
--- | Returns all permutations of the array with elements from 1 up to n.
+-- | `permutations n` gives you all permutations of the array with elements
+-- | from 1 up to n. If `n` is not positive, the resulting array is empty.
+-- |
+-- | ```purescript
+-- | permutations 0 == []
+-- | permutations 1 == [[1]]
+-- | permutations 2 == [[2,1], [1,2]]
+-- | ```
+-- |
+-- | *Time complexity: O(n!).*
 permutations :: Int -> Array (Array Int)
 permutations n | n <= 0 = []
 permutations 1 = [[1]]
@@ -301,11 +344,15 @@ permutations n = do
   maybe [] pure (Array.insertAt i n p)
 
 -- | `symmetric n` gives you every element of the group S(n) in an array.
+-- |
+-- | *Time complexity: O(n!).*
 symmetric :: Int -> Array Sym
 symmetric = map (Sym <<< reduce) <<< permutations
 
 -- | `alternating n` gives you every element of the group A(n) -- that is, the
 -- | subgroup of S(n) given by the even permutations -- in an array.
+-- |
+-- | *Time complexity: O(n!).*
 alternating :: Int -> Array Sym
 alternating = Array.filter ((_ == Even) <<< parity) <<< symmetric
 
@@ -314,6 +361,9 @@ composeSym s1 s2 =
   let n = max (minN s1) (minN s2)
       f = asFunction s1 <<< asFunction s2
    in Sym (reduce (map (f $ _) (Array.range 1 n)))
+
+unSym :: Sym -> Array Int
+unSym (Sym xs) = xs
 
 invertSym :: Sym -> Sym
 invertSym =
@@ -327,14 +377,26 @@ invertSym =
 -- | The order of a permutation; the smallest positive integer n such that s^n
 -- | is the identity. Restricting `Sym` to finitary permutations ensures that
 -- | this is always finite.
+-- |
+-- | ```purescript
+-- | order mempty == 1
+-- | order (fromCycle (1:2:Nil)) == 2
+-- | order (fromCycle (1:2:3:Nil)) == 3
+-- | ```
+-- |
+-- | *Time complexity: O(nm), where, if the permutation is expressed as a
+-- | product of disjoint cycles, n is the length of the longest cycle, and m
+-- | is the number of cycles.*
 order :: Sym -> Int
 order = foldl lcm 1 <<< map List.length <<< asCycles
 
 -- | The inversions of a permutation, i.e. for a permutation f, this function
--- | returns all pairs of points x, y such that `x < y` and `f x > f y`.
+-- | returns all pairs x, y such that `x < y` and `f x > f y`.
 -- |
 -- | The parity of the number of inversions of a permutation is equal to the
 -- | parity of the permutation itself.
+-- |
+-- | *Time complexity: O(n^2), where `n = minN f`.*
 inversions :: Sym -> Array (Tuple Int Int)
 inversions s =
   let n = minN s
@@ -360,6 +422,10 @@ inversions s =
 -- |
 -- | The parity of a permutation is sometimes also called the "sign" or
 -- | "signature".
+-- |
+-- | *Time complexity: O(nm), where, if the permutation is expressed as a
+-- | product of disjoint cycles, n is the length of the longest cycle, and m
+-- | is the number of cycles.*
 parity :: Sym -> Parity
 parity = sum <<< map cycleSgn <<< asCycles
   where
@@ -368,6 +434,8 @@ parity = sum <<< map cycleSgn <<< asCycles
   cycleSgn xs = if Int.odd (List.length xs) then Even else Odd
 
 -- | The set containing just the identity element of a group (i.e. `mempty`).
+-- |
+-- | *Time complexity: O(1).*
 trivialSubgroup :: forall a. Ord a => Group a => Set a
 trivialSubgroup = Set.fromFoldable [mempty]
 
