@@ -75,3 +75,9 @@ main = do
   assert (minN mempty == 1)
   assert (minN (fromCycle (1:2:Nil)) == 3)
   for_ s5 \a -> assert (minN a <= 6)
+
+  log "asFunction"
+  for_ s4 \a ->
+    for_ s4 \b ->
+      for_ (Array.range 1 4) \i ->
+        assert (asFunction a (asFunction b i) == asFunction (a <> b) i)
