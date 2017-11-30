@@ -100,6 +100,7 @@ module Data.SymmetricGroup
   ) where
 
 import Prelude
+import Control.Monad.ST (pureST)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Tuple (Tuple(..), snd)
 import Data.Monoid (class Monoid, mempty, power)
@@ -110,8 +111,10 @@ import Data.Int (Parity(..)) as ReExports
 import Data.String as String
 import Data.Set (Set)
 import Data.Set as Set
-import Data.Foldable (foldl, foldMap, maximum, sum)
+import Data.Foldable (for_, foldl, foldMap, maximum, sum)
 import Data.Array as Array
+import Data.Array.ST (thaw, unsafeFreeze, pokeSTArray)
+import Data.Array.ST.Iterator as Iter
 import Data.List (List(..), (:))
 import Data.List as List
 
@@ -259,15 +262,15 @@ fromCycle :: List Int -> Sym
 fromCycle is =
   let js = List.nub $ List.filter (_ > 0) is
       n = fromMaybe 1 (maximum js)
-      orig = Array.range 1 n
       graph = cycleGraph js
-   in Sym $ reduce $
-        foldl (flip (\(Tuple ix m) ->
-                        fromMaybe [] <<< Array.updateAt (ix - 1) m))
-              orig
-              graph
+   in Sym (reduce (pureST do
+        arr <- thaw (Array.range 1 n)
+        for_ graph \(Tuple x y) ->
+          void (pokeSTArray arr (x - 1) y)
+        unsafeFreeze arr))
 
--- | Generate the graph of a cycle (omitting fixed points).
+-- | O(n), where n is the length of the input list/cycle. Generate the graph of
+-- | a cycle (omitting fixed points).
 cycleGraph :: List Int -> List (Tuple Int Int)
 cycleGraph Nil          = Nil
 cycleGraph (_:Nil)      = Nil
