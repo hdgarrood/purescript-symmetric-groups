@@ -62,7 +62,7 @@ main = do
     let n = order a
     in if n > 1
          then assert (all (_ /= mempty) (map (power a) (List.range 1 (n - 1))))
-         else pure unit
+         else assert (a == mempty)
 
   log "fromCycle ignores duplicates"
   assert (fromCycle (1:2:Nil) == fromCycle (1:2:1:Nil))
