@@ -113,7 +113,6 @@ import Data.Set as Set
 import Data.Foldable (for_, foldl, foldMap, maximum, sum)
 import Data.Array as Array
 import Data.Array.ST (thaw, unsafeFreeze, pokeSTArray)
-import Data.Array.ST.Iterator as Iter
 import Data.List (List(..), (:))
 import Data.List as List
 
